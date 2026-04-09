@@ -1,0 +1,373 @@
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Análisis de Concavidad / Convexidad</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    body {
+      background-color: #eef7ff;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .sidebar {
+      width: 300px;
+    }
+
+    .main {
+      flex: 1;
+    }
+
+    .titulo {
+      color: #007acc;
+      font-weight: bold;
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 5px;
+      margin-bottom: 12px;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #007acc;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #005fa3;
+    }
+
+    .matrix-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .matrix-grid input {
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background: #007acc;
+      color: white;
+    }
+
+    .criterio {
+      background:#f0f9ff;
+      padding:15px;
+      border-left:5px solid #00aaff;
+      border-radius:8px;
+      line-height: 1.7;
+    }
+
+    .res-verde {
+      background:#e6ffed;
+      color:#1a7f37;
+      padding:15px;
+      border-radius:10px;
+      font-weight:bold;
+    }
+
+    .res-rojo {
+      background:#ffecec;
+      color:#b30000;
+      padding:15px;
+      border-radius:10px;
+      font-weight:bold;
+    }
+
+    .res-amarillo {
+      background:#fff8e6;
+      color:#996c00;
+      padding:15px;
+      border-radius:10px;
+      font-weight:bold;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="titulo">📘 Análisis de Concavidad / Convexidad con Hessiano Orlado</div>
+
+  <div class="container">
+
+    <div class="sidebar">
+      <div class="card">
+        <h3>⚙️ Configuración</h3>
+
+        <label>Variables (n):</label>
+        <input type="number" id="n" value="2">
+
+        <label>Restricciones (m):</label>
+        <input type="number" id="m" value="1">
+
+        <label>Variables:</label>
+        <input type="text" id="vars" value="x,y">
+
+        <label>Punto crítico:</label>
+        <input type="text" id="punto" value="1,1">
+
+        <button onclick="crearMatriz()">Actualizar matriz</button>
+        <button onclick="analizar()">🔍 Analizar</button>
+        <button onclick="cargarEjemplo()">⚡ Cargar ejemplo</button>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <div class="card">
+        <h3>🧮 Matriz Hessiana Orlada</h3>
+        <div id="matrizContainer"></div>
+      </div>
+
+      <div class="card">
+        <h3>📐 Matriz evaluada en el punto (forma matricial)</h3>
+        <div id="latex"></div>
+      </div>
+
+      <div class="card">
+        <h3>📊 Signos de menores principales</h3>
+        <div id="tabla"></div>
+      </div>
+
+      <div class="card">
+        <h3>📘 Criterio utilizado</h3>
+        <div class="criterio">
+
+          <b>✔ Análisis empezando por el menor principal de orden (2m+1) hasta (m+n) <br><br>
+
+          <b>✔ Convexidad (estricta):</b><br>
+          Los menores principales cumplen:<br>
+          signo = (-1)^m <br><br>
+
+          <b>✔ Concavidad (estricta):</b><br>
+          Los signos alternan según:<br>
+          (-1)^{m+1} <br><br>
+
+          <b>📌 Interpretación:</b><br>
+          ✔ Todos iguales con signo (-1)^m→ Estrictamente Convexa<br>
+          ✔ Alternan empezando con signo (-1)^(m+1)→ Estrictamente Cóncava<br>
+          ✔ Otro caso → Indefinida
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Resultado</h3>
+        <div id="resultado"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function crearMatriz() {
+      const n = parseInt(document.getElementById('n').value);
+      const m = parseInt(document.getElementById('m').value);
+      const size = n + m;
+
+      const container = document.getElementById('matrizContainer');
+      container.innerHTML = '';
+
+      const grid = document.createElement('div');
+      grid.className = 'matrix-grid';
+      grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+      for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.id = `cell_${i}_${j}`;
+          input.value = '0';
+          grid.appendChild(input);
+        }
+      }
+
+      container.appendChild(grid);
+    }
+
+    function cargarEjemplo() {
+      document.getElementById('n').value = 2;
+      document.getElementById('m').value = 1;
+      crearMatriz();
+
+      document.getElementById('cell_0_0').value = '0';
+      document.getElementById('cell_0_1').value = '1';
+      document.getElementById('cell_0_2').value = '1';
+      document.getElementById('cell_1_0').value = '1';
+      document.getElementById('cell_1_1').value = '-2*x';
+      document.getElementById('cell_1_2').value = '0';
+      document.getElementById('cell_2_0').value = '1';
+      document.getElementById('cell_2_1').value = '0';
+      document.getElementById('cell_2_2').value = '-2*y';
+    }
+
+    function analizar() {
+      try {
+        const n = parseInt(document.getElementById('n').value);
+        const m = parseInt(document.getElementById('m').value);
+
+        if (m > n) {
+          alert('⚠️ Debe cumplirse: m < n');
+          return;
+        }
+
+        if (m === n) {
+          alert('⚠️ El método no define cuando m = n');
+          return;
+        }
+
+        const size = n + m;
+        const vars = document.getElementById('vars').value.split(',').map(v => v.trim());
+        const punto = document.getElementById('punto').value.split(',').map(v => Number(v.trim()));
+
+        const scope = {};
+        vars.forEach((v, i) => {
+          scope[v] = punto[i];
+        });
+
+        const H = [];
+
+        for (let i = 0; i < size; i++) {
+          H[i] = [];
+          for (let j = 0; j < size; j++) {
+            const expr = document.getElementById(`cell_${i}_${j}`).value.trim();
+            H[i][j] = Number(math.evaluate(expr, scope));
+          }
+        }
+
+        const latexMatrix = H
+  .map(row => row.map(v => Number(v).toFixed(2)).join(' & '))
+  .join(' \\\\ ');  // ✅ doble backslash para separar filas
+
+	document.getElementById('latex').innerHTML = `\\[
+		\\text{|H|} = 
+		\\begin{pmatrix}
+		${latexMatrix}
+		\\end{pmatrix}
+		\\]`;
+
+	// Renderizar con MathJax
+	if (window.MathJax) {
+	  MathJax.typesetPromise([document.getElementById('latex')]);
+	}
+
+        if (window.MathJax) {
+          MathJax.typesetPromise([document.getElementById('latex')]);
+        }
+
+        const inicio = 2 * m;
+        const fin = m + n - 1;
+
+        let menores = [];
+        let signos = [];
+
+        for (let k = inicio; k <= fin; k++) {
+          const sub = H.slice(0, k + 1).map(row => row.slice(0, k + 1));
+          const det = math.det(sub);
+          menores.push(det);
+          signos.push(Math.sign(det));
+        }
+
+        let tablaHTML = `
+          <table>
+            <tr>
+              <th>Orden</th>
+              <th>Determinante</th>
+              <th>Signo</th>
+            </tr>
+        `;
+
+        for (let i = 0; i < menores.length; i++) {
+          tablaHTML += `
+            <tr>
+              <td>${2 * m + 1 + i}</td>
+              <td>${Number(menores[i]).toFixed(4)}</td>
+              <td>${signos[i]}</td>
+            </tr>
+          `;
+        }
+
+        tablaHTML += '</table>';
+        document.getElementById('tabla').innerHTML = tablaHTML;
+
+        const convexa = signos.every(s => s === Math.pow(-1, m));
+        const concava = signos.every((s, i) => s === Math.pow(-1, m + 1 + i));
+
+        let resultadoHTML = '';
+
+        if (convexa) {
+          resultadoHTML = '<div class="res-verde">✅ Función estrictamente CONVEXA</div>';
+        } else if (concava) {
+          resultadoHTML = '<div class="res-rojo">🔻 Función estrictamente CÓNCAVA</div>';
+        } else {
+          resultadoHTML = '<div class="res-amarillo">⚠️ Hessiano indefinido (no convexa ni cóncava)</div>';
+        }
+
+        document.getElementById('resultado').innerHTML = resultadoHTML;
+
+      } catch (error) {
+        console.error(error);
+        alert('Error: ' + error.message);
+      }
+    }
+
+    crearMatriz();
+  </script>
+
+</body>
+</html>
